@@ -3,11 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>評什麼東西 | 台灣國小期末評語生成器 (專業穩定版)</title>
+    <title>評什麼東西 | 台灣國小期末評語生成器 (Firebase 穩定版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -68,7 +73,7 @@
         const TRAIT_CATEGORIES = [
             { id: 'attitude', title: '學習態度', traits: ['積極主動', '專注認真', '思維敏捷', '思慮周祥', '被動謹慎', '需多叮嚀', '求知慾強', '樂於發表', '耐心不足', '作業工整'] },
             { id: 'interpersonal', title: '人際與社交', traits: ['溫和友善', '熱心助人', '領導力強', '樂於分享', '害羞內向', '活潑開朗', '合群守法', '善於溝通', '耿直大方', '謙恭有禮'] },
-            { id: 'character', title: '常規與品格', traits: ['誠實負責', '遵守紀律', '愛惜公物', '沉穩內斂', '粗心大意', '情緒穩定', '尊師重道', '言行一致', '熱心公務', '有禮貌'] },
+            { id: 'character', title: '常規與品格', traits: ['誠實負責', '遵守紀律', '愛惜公公物', '沉穩內斂', '粗心大意', '情緒穩定', '尊師重道', '言行一致', '熱心公務', '有禮貌'] },
             { id: 'special', title: '特殊表現', traits: ['具藝術天分', '體育表現傑出', '口才流利', '喜愛閱讀', '動手能力強', '音感極佳', '邏輯力強', '擅長科技', '服務熱忱', '創意無限'] }
         ];
 
@@ -87,21 +92,50 @@
         ];
 
         function App() {
+            // Global Settings
             const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
             const [globalLength, setGlobalLength] = useState('medium');
             const [apiStatus, setApiStatus] = useState({ type: 'idle', message: '' });
             
+            // Core State
             const [students, setStudents] = useState([]);
             const [selectedId, setSelectedId] = useState(null);
             
+            // UI State
             const [batchText, setBatchText] = useState('');
             const [customTagInput, setCustomTagInput] = useState('');
             const [isGenerating, setIsGenerating] = useState(false);
             const [showSettings, setShowSettings] = useState(false);
+            const [viewCount, setViewCount] = useState('讀取中...');
 
             useEffect(() => {
                 localStorage.setItem('gemini_api_key', apiKey);
             }, [apiKey]);
+
+            // Firebase Hit Counter Logic
+            useEffect(() => {
+                try {
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp({ 
+                            databaseURL: 'https://teacher-comments-counter-default-rtdb.firebaseio.com/' 
+                        });
+                    }
+                    const db = firebase.database();
+                    const counterRef = db.ref('visitchat/suuyo01_v2'); // 使用 v2 標籤區分新版
+                    
+                    counterRef.transaction(current => (current || 0) + 1, (error, committed, snapshot) => {
+                        if (error) {
+                            console.error('Counter Error:', error);
+                            setViewCount('--');
+                        } else if (snapshot) {
+                            setViewCount(snapshot.val());
+                        }
+                    });
+                } catch (e) {
+                    console.error('Firebase Init Error:', e);
+                    setViewCount('--');
+                }
+            }, []);
 
             const selectedStudent = useMemo(() => 
                 students.find(s => s.id === selectedId) || null, 
@@ -381,11 +415,12 @@
                         </div>
                     </div>
 
-                    {/* Footer */}
+                    {/* Footer with Firebase Pure Text Counter */}
                     <footer className="mt-20 py-12 border-t border-morandi-bg text-center space-y-4">
-                        <div className="flex items-center justify-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
-                            <span className="text-xs text-gray-500 font-bold tracking-tight">👁️ 總瀏覽人次：</span>
-                            <img src="https://profile-counter.glitch.me/suuyo01-teacher-comments/count.svg" alt="訪客計數器" className="inline-block h-5 opacity-50 m-1 contrast-75" />
+                        <div className="flex items-center justify-center gap-2">
+                            <span className="text-xs text-gray-400 opacity-50 font-bold tracking-tight">
+                                👁️ 總瀏覽人次：{viewCount} 次
+                            </span>
                         </div>
                         <div className="text-sm text-gray-500 font-black tracking-widest">© 2026 導師已登出開發團隊. All Rights Reserved.</div>
                         <div className="max-w-2xl mx-auto px-4">
