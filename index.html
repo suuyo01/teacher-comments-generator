@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>評什麼東西 | 台灣國小期末評語生成器 (終極穩定版)</title>
+    <title>評什麼東西 | 國小期末評語生成器</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -87,16 +87,11 @@
         ];
 
         function App() {
-            // Global Settings
             const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
             const [globalLength, setGlobalLength] = useState('medium');
             const [apiStatus, setApiStatus] = useState({ type: 'idle', message: '' });
-            
-            // Core State
             const [students, setStudents] = useState([]);
             const [selectedId, setSelectedId] = useState(null);
-            
-            // UI State
             const [batchText, setBatchText] = useState('');
             const [customTagInput, setCustomTagInput] = useState('');
             const [isGenerating, setIsGenerating] = useState(false);
@@ -107,23 +102,18 @@
                 localStorage.setItem('gemini_api_key', apiKey);
             }, [apiKey]);
 
-            // Defense Logic for Visit Counter
             useEffect(() => {
                 const fetchCounter = async () => {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 秒超時
-
+                    const timeoutId = setTimeout(() => controller.abort(), 2000);
                     try {
                         const response = await fetch('https://api.counterapi.dev/v1/projects/suuyo01_eval_things/counters/pageviews/up', {
                             signal: controller.signal
                         });
                         const data = await response.json();
                         setViewCount(data.count);
-                        // 同步更新本地備份
                         localStorage.setItem('eval_fallback_count', data.count);
                     } catch (error) {
-                        console.log('API Counter blocked or timed out, using fallback.');
-                        // Fallback: LocalStorage + Seed
                         const localCount = parseInt(localStorage.getItem('eval_fallback_count')) || 542;
                         const newCount = localCount + 1;
                         localStorage.setItem('eval_fallback_count', newCount);
@@ -299,7 +289,7 @@
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                         <div>
                             <h1 className="text-4xl font-black text-morandi-dark tracking-tighter">評什麼東西</h1>
-                            <p className="text-morandi-clay font-bold mt-1 tracking-wide">台灣國小期末評語生成器 (終極穩定版)</p>
+                            <p className="text-morandi-clay font-bold mt-1 tracking-wide">國小期末評語生成器</p>
                         </div>
                         <div className="flex gap-3">
                             <button onClick={() => setShowSettings(true)} className="px-5 py-2.5 bg-white border border-morandi-sage text-morandi-sage rounded-xl hover:bg-morandi-oat transition-all shadow-sm font-medium">⚙️ API 連線設定</button>
@@ -413,7 +403,7 @@
                         </div>
                     </div>
 
-                    {/* Final Footer with Defense Counter */}
+                    {/* Footer */}
                     <footer className="mt-20 py-14 border-t border-morandi-bg text-center space-y-4">
                         <div className="flex items-center justify-center gap-2 opacity-50 hover:opacity-100 transition-opacity">
                             <span className="text-xs text-gray-400 font-bold tracking-tight">👁️ 總瀏覽人次：{viewCount} 次</span>
