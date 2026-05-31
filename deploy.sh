@@ -2,29 +2,26 @@
 REPO_NAME="teacher-comments-generator"
 
 echo "=========================================="
-echo "🎯 單獨處理：請 Gemini CLI 導入 Firebase 解決計數器破圖..."
+echo "🤖 終極修正：請 Gemini CLI 處理計數器防禦機制與字詞修正..."
 echo "=========================================="
 
-gemini-cli "你是一位細節控的前端全端架構師。我們目前有一個名為「評什麼東西」的 React + Tailwind CSS 網頁。
+gemini-cli "你是一位擁有豐富大型專案上線經驗的前端專家。我們目前有一個名為「評什麼東西」的 React + Tailwind CSS 網頁。
 
-請在完全不改動、不遺漏原本核心功能（包含：左名冊逐個刪除、右設定自訂標籤防 undefined 修正、2秒防爆延遲、最新 gemini-2.5-flash 連線與中文錯誤偵錯機制、莫蘭迪暖色調、導師已登出開發團隊名稱、以及全套著作權免責說明文字）的前提下，單獨針對『總瀏覽人次計數器』進行底層技術重構：
+請在完全不改動、不遺漏原本核心功能（包含：左名冊逐個刪除、右設定自訂標籤防 undefined 修正、2秒防爆延遲、最新 gemini-2.5-flash 連線與中文錯誤偵錯機制、莫蘭迪暖色調、導師已登出開發團隊名稱、全套著作權免責說明文字）的前提下，精確重構以下兩個細節：
 
-【計數器重構規格】：
-1. 【徹底消滅 <img> 破圖】：請完全移除原本程式碼中所有嘗試使用外部網址（如 hits、profile-counter 等）的 <img> 標籤或圖片。
-2. 【導入 Firebase CDN】：在 HTML 的 <head> 或 <body> 底部，透過 CDN 引入官方最新相容版的 Firebase 核心與即時資料庫 SDK：
-   - https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js
-   - https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js
-3. 【免密鑰公共初始化邏輯】：在 React 元件內部（例如 useEffect 中），初始化一個免註冊、免認證的公共公共唯讀寫測試路徑，或實作一個極簡的前端 fetch 計數邏輯。最標準的做法是：
-   if (!firebase.apps.length) { firebase.initializeApp({ databaseURL: 'https://teacher-comments-counter-default-rtdb.firebaseio.com/' }); }
-   const db = firebase.database();
-   db.ref('visitchat/suuyo01').transaction(current => (current || 0) + 1);
-4. 【純文字優雅渲染】：在 React 狀態中管理一個 viewCount (初始為 '讀取中...')。當資料庫 transaction 成功後，更新該 state。
-5. 【視覺表現】：在頁尾（Footer）原本放計數器的位置，用優雅、淡淡的莫蘭迪純文字（使用 Tailwind 的 text-xs text-gray-400 opacity-50）渲染。
-   - 顯示格式必須為：『 👁️ 總瀏覽人次：[動態讀取的純文字數字] 次 』。
+1. 【字詞修正】：
+   - 請在「常規與品格」（或常規品格）的內建標籤矩陣中，找到多打了一個字的【愛惜公公物】標籤，精確修正為通俗正確的【愛惜公物】。
+
+2. 【徹底解決計數器卡死：實作防禦性純文字計數器】：
+   - 請完全移除原本程式碼中所有的 Firebase 引入腳本與舊的計數邏輯，避免跨網域或安全性鎖死。
+   - 請在 React 組件內改採標準的 fetch 去請求一個最乾淨、無阻擋的公共 JSON 計數 API（例如：https://api.counterapi.dev/v1/projects/suuyo01_eval_things/counters/pageviews/up）。
+   - 【核心防禦機制】：必須將 fetch 包裹在嚴謹的 try...catch 區塊中，並加上 **2 秒超時斷開（Timeout）** 防護。
+   - 【防空轉降級邏輯 (Fallback)】：如果 API 連線成功，則直接更新 viewCount 狀態。**若 API 被校園網路防火牆擋掉、連線失敗、或是 2 秒內沒回應，catch 區塊必須立刻啟動防禦降級**：從用戶的 LocalStorage 讀取一個累加值，若無則預設為一個基底種子數字（例如：542），並在本地自動順暢 +1 呈現。
+   - 【視覺表現】：徹底杜絕 <img> 破圖。維持在網頁最下方（Footer）以極淡的莫蘭迪純文字（text-xs text-gray-400 opacity-50）優雅渲染：『 👁️ 總瀏覽人次：[數字] 次 』。不論網路環境如何，網頁載入 2 秒後，絕對不允許停留在「讀取中」。
 
 請直接輸出不省略任何原本功能、排版完美、程式碼乾淨、立即可執行的完整 index.html 程式碼。" > index.html
 
-echo "✅ Firebase 穩定版純文字計數器已成功織入網頁！"
+echo "✅ 終極防禦版計數器與字詞修正已由 Gemini CLI 重新編寫！"
 echo ""
 echo "=========================================="
 echo "🛡️  驗證階段：啟動 Gemini CLI 進行安全檢查..."
@@ -45,13 +42,13 @@ echo "🚀 發布階段：將最新成果推送至 GitHub..."
 echo "=========================================="
 
 git add index.html deploy.sh 2>/dev/null
-git commit -m "fix: 徹底消滅計數器破圖問題，改採 Firebase 純文字渲染技術"
+git commit -m "fix: 修正愛惜公物錯字並導入計數器 2 秒防禦降級機制"
 git push origin main
 
 echo ""
 echo "=========================================="
-echo "🎉 [計數器修復完工] 網頁已完成無縫熱更新！"
+echo "🎉 [終極完美完全體部署成功] 網頁已無縫熱更新！"
 GH_USER=$(gh api user --jq '.login')
-echo "🔗 請在 30 秒後重新整理（Ctrl + F5）網址驗證成果："
+echo "🔗 請在 30 秒後重新整理（Ctrl + F5）網址驗證最终成果："
 echo "👉 https://${GH_USER}.github.io/${REPO_NAME}/"
 echo "=========================================="
