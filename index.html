@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台灣國小期末評語生成器 (專業重構版) | Gemini 2.5 Flash</title>
+    <title>台灣國小期末評語生成器 (專業修復版) | Gemini 2.5 Flash</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -106,7 +106,7 @@
             const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
             const [globalLength, setGlobalLength] = useState('medium');
             
-            // Core State: List of students with all their attributes
+            // Core State
             const [students, setStudents] = useState([]);
             const [selectedId, setSelectedId] = useState(null);
             
@@ -121,7 +121,7 @@
             }, [apiKey]);
 
             const selectedStudent = useMemo(() => 
-                students.find(s => s.id === selectedId), 
+                students.find(s => s.id === selectedId) || null, 
             [students, selectedId]);
 
             // Handlers
@@ -130,15 +130,15 @@
                 if (names.length === 0) return;
                 
                 const newStudents = names.map(name => ({
-                    id: Date.now() + Math.random(),
-                    name,
+                    id: `std-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    name: name.trim(),
                     traits: [],
-                    customTraits: [],
+                    customTraits: [], // Fixed: Always initialized as empty array
                     tone: 'gentle',
                     teacherNote: '',
                     comment: '',
-                    history: [], // For rollback
-                    status: 'pending' // pending, generating, done, error
+                    history: [],
+                    status: 'pending'
                 }));
                 
                 setStudents(prev => [...prev, ...newStudents]);
@@ -158,24 +158,35 @@
                 updateStudent(selectedId, { traits });
             };
 
-            const addCustomTag = (e) => {
+            const handleAddCustomTag = (e) => {
                 if (e.key === 'Enter' && customTagInput.trim()) {
+                    e.preventDefault();
                     if (!selectedStudent) return;
-                    const customTraits = [...selectedStudent.customTraits, customTagInput.trim()];
+                    
+                    const newTag = customTagInput.trim();
+                    // 防呆：避免重複標籤
+                    if (selectedStudent.customTraits.includes(newTag)) {
+                        setCustomTagInput('');
+                        return;
+                    }
+
+                    const customTraits = [...(selectedStudent.customTraits || []), newTag];
                     updateStudent(selectedId, { customTraits });
                     setCustomTagInput('');
                 }
             };
 
-            const removeCustomTag = (tag) => {
-                const customTraits = selectedStudent.customTraits.filter(t => t !== tag);
+            const handleRemoveCustomTag = (tagToRemove) => {
+                if (!selectedStudent) return;
+                // Fixed: Explicitly filter by value and ensure we handle the state correctly
+                const customTraits = selectedStudent.customTraits.filter(t => t !== tagToRemove);
                 updateStudent(selectedId, { customTraits });
             };
 
             const generateComment = async (id, isRegenerate = false) => {
                 const student = students.find(s => s.id === id);
                 if (!student || !apiKey) {
-                    alert('請先設定 API Key');
+                    alert('請先在設定中配置 API Key');
                     return;
                 }
 
@@ -186,32 +197,32 @@
                     const genAI = new GoogleGenerativeAI(apiKey);
                     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-                    const allTraits = [...student.traits, ...student.customTraits].join('、');
+                    const allTraits = [...(student.traits || []), ...(student.customTraits || [])].join('、');
                     const toneDesc = TONES.find(t => t.id === student.tone).prompt;
                     const lengthVal = LENGTHS.find(l => l.id === globalLength).value;
 
-                    const systemPrompt = `你是一位擁有20年經驗的台灣國小導師。請用繁體中文與台灣習慣教育用語（絕對避免中國用語，如「質量、屏幕、優化」等，應使用「品質、螢幕、最佳化」），撰寫溫暖且具建設性的期末評語。直接輸出評語內容，不需任何開場白。`;
-                    
                     const userPrompt = `
+                        你是一位擁有20年經驗的台灣國小導師。請用繁體中文與台灣習慣教育用語（絕對避免中國用語，如「質量、屏幕、優化、水平、給力」等），撰寫溫暖且具建設性的期末評語。直接輸出評語內容，不需任何開場白。
+                        
                         學生姓名：${student.name}
-                        學生特質：${allTraits || '表現平穩'}
+                        學生特質：${allTraits || '表現平穩，生活單純'}
                         語氣要求：${toneDesc}
                         字數限制：${lengthVal}
-                        ${student.teacherNote ? `導師特別備註：${student.teacherNote}` : ''}
+                        ${student.teacherNote ? `導師補充細節：${student.teacherNote}` : ''}
                         
-                        請以此資訊為基礎，為該學生撰寫一份動人的期末評語。
+                        請以此資訊為基礎，撰寫一份動人的評語。
                     `;
 
                     const result = await model.generateContent(userPrompt);
                     const response = await result.response;
-                    const text = response.text();
+                    const text = response.text().trim();
 
                     setStudents(prev => prev.map(s => {
                         if (s.id === id) {
                             const newHistory = s.comment ? [s.comment, ...s.history].slice(0, 5) : s.history;
                             return { 
                                 ...s, 
-                                comment: text.trim(), 
+                                comment: text, 
                                 history: newHistory,
                                 status: 'done' 
                             };
@@ -219,9 +230,9 @@
                         return s;
                     }));
                 } catch (error) {
-                    console.error(error);
+                    console.error('API Error:', error);
                     updateStudent(id, { status: 'error' });
-                    alert('生成失敗，請檢查 API Key 或網路連線');
+                    alert('生成失敗，請檢查 API Key 是否正確或網路狀態。');
                 } finally {
                     setIsGenerating(false);
                 }
@@ -229,7 +240,7 @@
 
             const rollback = (id) => {
                 setStudents(prev => prev.map(s => {
-                    if (s.id === id && s.history.length > 0) {
+                    if (s.id === id && s.history && s.history.length > 0) {
                         const [lastComment, ...remainingHistory] = s.history;
                         return { 
                             ...s, 
@@ -244,58 +255,64 @@
             const copyAll = () => {
                 const allComments = students
                     .filter(s => s.comment)
-                    .map(s => `${s.name}：\n${s.comment}`)
-                    .join('\n\n---\n\n');
+                    .map(s => `【${s.name}】\n${s.comment}`)
+                    .join('\n\n' + '='.repeat(20) + '\n\n');
+                
+                if (!allComments) {
+                    alert('尚未生成任何評語');
+                    return;
+                }
+                
                 navigator.clipboard.writeText(allComments);
-                alert('已複製所有評語！');
+                alert('已複製所有已生成的評語！');
             };
 
             return (
                 <div className="max-w-7xl mx-auto px-4 py-8">
-                    {/* Header */}
-                    <div className="flex justify-between items-center mb-8">
+                    {/* Header Section */}
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                         <div>
                             <h1 className="text-3xl font-bold text-morandi-dark">國小教師期末評語生成器</h1>
-                            <p className="text-morandi-clay">AI 驅動的專業評語批次管理系統</p>
+                            <p className="text-morandi-clay">專業批次管理與 AI 生成系統</p>
                         </div>
-                        <div className="flex gap-4">
+                        <div className="flex gap-3">
                             <button 
-                                onClick={() => setShowSettings(!showSettings)}
-                                className="px-4 py-2 bg-white border border-morandi-sage text-morandi-sage rounded-lg hover:bg-morandi-oat transition-colors"
+                                onClick={() => setShowSettings(true)}
+                                className="px-4 py-2 bg-white border border-morandi-sage text-morandi-sage rounded-lg hover:bg-morandi-oat transition-all"
                             >
-                                ⚙️ 設定 API Key
+                                ⚙️ API 設定
                             </button>
                             <button 
                                 onClick={copyAll}
-                                className="px-4 py-2 bg-morandi-sage text-white rounded-lg hover:opacity-90 transition-opacity shadow-sm"
+                                className="px-4 py-2 bg-morandi-sage text-white rounded-lg hover:opacity-90 shadow-sm transition-all"
                             >
-                                📋 複製所有評語
+                                📋 匯出全部
                             </button>
                         </div>
                     </div>
 
-                    {/* API Key Modal */}
+                    {/* Settings Modal */}
                     {showSettings && (
                         <div className="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
-                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md animate-fade-in">
-                                <h2 className="text-xl font-bold mb-4">系統設定</h2>
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium mb-1">Gemini API Key</label>
+                            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fade-in border border-morandi-oat">
+                                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">系統設定</h2>
+                                <div className="mb-6">
+                                    <label className="block text-sm font-medium mb-2 text-morandi-dark">Google Gemini API Key</label>
                                     <input 
                                         type="password" 
-                                        placeholder="輸入 AIza... 開頭的金鑰"
+                                        placeholder="請貼上您的 API Key (AIza...)"
                                         value={apiKey}
                                         onChange={(e) => setApiKey(e.target.value)}
-                                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-morandi-sage outline-none"
+                                        className="w-full px-4 py-3 border rounded-xl bg-morandi-bg focus:ring-2 focus:ring-morandi-sage outline-none transition-all"
                                     />
-                                    <p className="text-xs text-gray-500 mt-2">金鑰將安全地儲存於您的瀏覽器中。</p>
+                                    <p className="text-xs text-morandi-clay mt-2">※ 金鑰將僅存於您的瀏覽器本地空間 (LocalStorage)。</p>
                                 </div>
                                 <div className="flex justify-end">
                                     <button 
                                         onClick={() => setShowSettings(false)}
-                                        className="px-6 py-2 bg-morandi-sage text-white rounded-lg"
+                                        className="px-6 py-2 bg-morandi-sage text-white rounded-xl hover:opacity-90 transition-all"
                                     >
-                                        儲存並關閉
+                                        儲存設定
                                     </button>
                                 </div>
                             </div>
@@ -303,61 +320,52 @@
                     )}
 
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                        {/* Left Column: List */}
+                        {/* Sidebar: Student Management */}
                         <div className="lg:col-span-4 flex flex-col gap-6">
-                            {/* Batch Import */}
+                            {/* Batch Import Card */}
                             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                                    <span>📥 批次匯入</span>
-                                </h3>
+                                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">📥 快速匯入名冊</h3>
                                 <textarea 
-                                    className="w-full h-32 p-3 border rounded-xl bg-morandi-bg focus:ring-2 focus:ring-morandi-sage outline-none text-sm resize-none"
-                                    placeholder="貼上學生姓名，每行一個或是空格分隔..."
+                                    className="w-full h-32 p-4 border rounded-xl bg-morandi-bg focus:ring-2 focus:ring-morandi-sage outline-none text-sm resize-none transition-all"
+                                    placeholder="請輸入學生姓名（多位請用換行或空格隔開）"
                                     value={batchText}
                                     onChange={(e) => setBatchText(e.target.value)}
                                 />
                                 <button 
                                     onClick={handleBatchImport}
-                                    className="w-full mt-3 py-2 bg-morandi-blue text-white rounded-xl hover:opacity-90 transition-opacity"
+                                    className="w-full mt-3 py-2 bg-morandi-blue text-white rounded-xl hover:bg-opacity-90 transition-all font-medium"
                                 >
-                                    一鍵匯入名冊
+                                    建立學生列表
                                 </button>
                             </div>
 
-                            {/* Student List */}
+                            {/* List Card */}
                             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex-1 min-h-[400px]">
-                                <h3 className="text-lg font-bold mb-4 flex justify-between items-center">
-                                    <span>👥 學生名冊 ({students.length})</span>
+                                <h3 className="text-lg font-bold mb-4 flex justify-between items-center text-morandi-dark">
+                                    <span>👥 學生清單 ({students.length})</span>
                                     {students.length > 0 && (
-                                        <button 
-                                            onClick={() => setStudents([])}
-                                            className="text-xs text-morandi-clay hover:text-red-400"
-                                        >
-                                            清空全部
-                                        </button>
+                                        <button onClick={() => setStudents([])} className="text-xs text-morandi-clay hover:text-red-400">清空列表</button>
                                     )}
                                 </h3>
                                 <div className="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
                                     {students.length === 0 ? (
-                                        <div className="text-center py-12 text-morandi-clay opacity-50 italic">
-                                            尚未匯入任何學生
-                                        </div>
+                                        <div className="text-center py-20 text-morandi-clay opacity-50 italic">尚未匯入學生</div>
                                     ) : (
                                         students.map(s => (
                                             <div 
                                                 key={s.id}
                                                 onClick={() => setSelectedId(s.id)}
-                                                className={`p-3 rounded-xl cursor-pointer transition-all border ${
+                                                className={`p-4 rounded-xl cursor-pointer transition-all border ${
                                                     selectedId === s.id 
-                                                    ? 'bg-morandi-oat border-morandi-sage shadow-inner' 
-                                                    : 'bg-white border-transparent hover:border-morandi-oat hover:bg-morandi-bg'
-                                                } flex justify-between items-center`}
+                                                    ? 'bg-morandi-oat border-morandi-sage shadow-sm' 
+                                                    : 'bg-white border-transparent hover:bg-morandi-bg'
+                                                } flex justify-between items-center group`}
                                             >
-                                                <div className="font-medium">{s.name}</div>
+                                                <div className="font-medium group-hover:translate-x-1 transition-transform">{s.name}</div>
                                                 <div className="flex items-center gap-2">
-                                                    {s.status === 'done' && <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">已生成</span>}
-                                                    {s.status === 'generating' && <span className="text-xs text-blue-600 animate-pulse">處理中...</span>}
-                                                    {s.status === 'pending' && <span className="text-xs text-gray-400">未設定</span>}
+                                                    {s.status === 'done' && <span className="w-2 h-2 rounded-full bg-green-500" title="已生成"></span>}
+                                                    {s.status === 'generating' && <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>}
+                                                    {s.status === 'pending' && <span className="w-2 h-2 rounded-full bg-gray-300"></span>}
                                                 </div>
                                             </div>
                                         ))
@@ -366,48 +374,48 @@
                             </div>
                         </div>
 
-                        {/* Right Column: Settings & Editor */}
-                        <div className="lg:col-span-8 space-y-6">
+                        {/* Main Content: Config & Editor */}
+                        <div className="lg:col-span-8">
                             {selectedStudent ? (
-                                <div className="animate-fade-in space-y-6">
-                                    {/* Config Card */}
+                                <div className="space-y-6 animate-fade-in">
+                                    {/* Main Configuration Card */}
                                     <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-                                        <div className="flex justify-between items-start mb-6">
-                                            <h2 className="text-2xl font-bold flex items-center gap-2">
-                                                <span className="w-10 h-10 bg-morandi-sage text-white rounded-full flex items-center justify-center">{selectedStudent.name[0]}</span>
-                                                {selectedStudent.name} 的評語配置
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 border-b border-morandi-bg pb-6">
+                                            <h2 className="text-2xl font-bold flex items-center gap-3">
+                                                <span className="w-12 h-12 bg-morandi-sage text-white rounded-2xl flex items-center justify-center text-xl shadow-sm">{selectedStudent.name[0]}</span>
+                                                {selectedStudent.name}
                                             </h2>
-                                            <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-3">
                                                 <select 
-                                                    className="bg-morandi-bg border-none rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-morandi-sage"
+                                                    className="bg-morandi-bg border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-morandi-sage"
                                                     value={globalLength}
                                                     onChange={(e) => setGlobalLength(e.target.value)}
                                                 >
-                                                    {LENGTHS.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
+                                                    {LENGTHS.map(l => <option key={l.id} value={l.id}>長度：{l.label}</option>)}
                                                 </select>
                                                 <select 
-                                                    className="bg-morandi-bg border-none rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-morandi-sage"
+                                                    className="bg-morandi-bg border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-morandi-sage"
                                                     value={selectedStudent.tone}
                                                     onChange={(e) => updateStudent(selectedId, { tone: e.target.value })}
                                                 >
-                                                    {TONES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                                                    {TONES.map(t => <option key={t.id} value={t.id}>語氣：{t.label}</option>)}
                                                 </select>
                                             </div>
                                         </div>
 
-                                        {/* Trait Matrix */}
-                                        <div className="space-y-6">
+                                        {/* Multidimensional Tags */}
+                                        <div className="space-y-8">
                                             {TRAIT_CATEGORIES.map(cat => (
                                                 <div key={cat.id}>
-                                                    <h4 className="text-sm font-bold text-morandi-clay mb-3">{cat.title}</h4>
+                                                    <h4 className="text-sm font-bold text-morandi-clay mb-4 tracking-wider">{cat.title}</h4>
                                                     <div className="flex flex-wrap gap-2">
                                                         {cat.traits.map(trait => (
                                                             <button 
                                                                 key={trait}
                                                                 onClick={() => toggleTrait(trait)}
-                                                                className={`px-3 py-1 rounded-full border text-sm transition-all ${
+                                                                className={`px-4 py-1.5 rounded-full border text-sm transition-all ${
                                                                     selectedStudent.traits.includes(trait)
-                                                                    ? 'chip-active scale-105'
+                                                                    ? 'chip-active scale-105 shadow-md'
                                                                     : 'bg-morandi-bg border-transparent hover:border-morandi-sage'
                                                                 }`}
                                                             >
@@ -418,38 +426,46 @@
                                                 </div>
                                             ))}
                                             
-                                            {/* Custom Traits Area */}
-                                            <div>
-                                                <h4 className="text-sm font-bold text-morandi-clay mb-3">🏷️ 自訂標籤</h4>
-                                                <div className="flex flex-wrap gap-2 mb-3">
-                                                    {selectedStudent.customTraits.map(trait => (
-                                                        <button 
-                                                            key={trait}
-                                                            onClick={() => removeCustomTag(trait)}
-                                                            className="chip-custom px-3 py-1 rounded-full border text-sm flex items-center gap-1 group"
+                                            {/* Custom Tags Section */}
+                                            <div className="pt-4">
+                                                <h4 className="text-sm font-bold text-morandi-clay mb-4 tracking-wider">🏷️ 自訂個別標籤</h4>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {/* Fixed: Conditional rendering to ensure no undefined/empty tags */}
+                                                    {selectedStudent.customTraits && selectedStudent.customTraits.length > 0 && selectedStudent.customTraits.map((trait, idx) => (
+                                                        <div 
+                                                            key={`${trait}-${idx}`}
+                                                            className="chip-custom px-4 py-1.5 rounded-full border text-sm flex items-center gap-2 animate-fade-in shadow-sm"
                                                         >
-                                                            {trait} <span className="opacity-50 group-hover:opacity-100">×</span>
-                                                        </button>
+                                                            {trait}
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleRemoveCustomTag(trait);
+                                                                }}
+                                                                className="hover:text-red-200 font-bold leading-none"
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        </div>
                                                     ))}
                                                     <input 
                                                         type="text"
-                                                        placeholder="+ 自訂標籤 (Enter 新增)"
+                                                        placeholder="+ 輸入並按 Enter"
                                                         value={customTagInput}
                                                         onChange={(e) => setCustomTagInput(e.target.value)}
-                                                        onKeyDown={addCustomTag}
-                                                        className="px-3 py-1 rounded-full bg-transparent border border-dashed border-morandi-sage text-sm focus:outline-none focus:border-solid w-40"
+                                                        onKeyDown={handleAddCustomTag}
+                                                        className="px-4 py-1.5 rounded-full bg-transparent border border-dashed border-morandi-sage text-sm focus:outline-none focus:border-solid w-40 transition-all"
                                                     />
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="mt-8 border-t pt-6">
-                                            <h4 className="text-sm font-bold text-morandi-clay mb-3 flex items-center gap-2">
-                                                <span>📝 導師補充備忘/特定事件建議</span>
-                                            </h4>
+                                        {/* Teacher's Note Section */}
+                                        <div className="mt-10 border-t border-morandi-bg pt-8">
+                                            <h4 className="text-sm font-bold text-morandi-clay mb-4 flex items-center gap-2">📝 導師補充備忘 (具體事蹟)</h4>
                                             <textarea 
-                                                className="w-full h-24 p-4 border rounded-xl bg-morandi-bg focus:ring-2 focus:ring-morandi-sage outline-none text-sm resize-none"
-                                                placeholder="輸入具體事蹟或特別建議（例如：數學成績進步明顯、在運動會表現出色...）"
+                                                className="w-full h-28 p-4 border rounded-2xl bg-morandi-bg focus:ring-2 focus:ring-morandi-sage outline-none text-sm resize-none transition-all"
+                                                placeholder="請輸入該學生的具體表現，例如：數學進步顯著、參與運動會獲得佳績、擔任衛生股長認真負責..."
                                                 value={selectedStudent.teacherNote}
                                                 onChange={(e) => updateStudent(selectedId, { teacherNote: e.target.value })}
                                             />
@@ -458,34 +474,40 @@
                                         <button 
                                             onClick={() => generateComment(selectedId)}
                                             disabled={isGenerating || !apiKey}
-                                            className={`w-full mt-6 py-4 rounded-xl font-bold text-lg transition-all shadow-md ${
+                                            className={`w-full mt-8 py-4 rounded-2xl font-bold text-xl transition-all shadow-lg flex items-center justify-center gap-3 ${
                                                 isGenerating 
                                                 ? 'bg-morandi-clay cursor-not-allowed text-white' 
-                                                : 'bg-morandi-sage text-white hover:scale-[1.01] active:scale-95'
+                                                : 'bg-morandi-sage text-white hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0'
                                             }`}
                                         >
-                                            {isGenerating ? '老師辛苦了，評語撰寫中...' : '✨ 生成 AI 專業評語'}
+                                            {isGenerating ? (
+                                                <>
+                                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                    老師辛苦了，評語撰寫中...
+                                                </>
+                                            ) : '✨ 生成專業期末評語'}
                                         </button>
                                     </div>
 
-                                    {/* Output Card */}
+                                    {/* AI Output Section */}
                                     {(selectedStudent.comment || selectedStudent.status === 'generating') && (
-                                        <div className="bg-white rounded-2xl p-8 shadow-sm border border-morandi-oat relative">
-                                            <div className="flex justify-between items-center mb-4">
-                                                <h3 className="font-bold text-lg">撰寫成果</h3>
+                                        <div className="bg-white rounded-2xl p-8 shadow-sm border border-morandi-oat animate-fade-in relative overflow-hidden">
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-morandi-sage"></div>
+                                            <div className="flex justify-between items-center mb-6">
+                                                <h3 className="font-bold text-xl text-morandi-dark">評語生成結果</h3>
                                                 <div className="flex gap-2">
-                                                    {selectedStudent.history.length > 0 && (
+                                                    {selectedStudent.history && selectedStudent.history.length > 0 && (
                                                         <button 
                                                             onClick={() => rollback(selectedId)}
-                                                            className="px-3 py-1 text-xs border border-morandi-clay text-morandi-clay rounded-lg hover:bg-morandi-bg transition-colors"
-                                                            title="恢復至上一次生成的內容"
+                                                            className="px-4 py-1.5 text-xs border border-morandi-clay text-morandi-clay rounded-xl hover:bg-morandi-bg transition-all"
+                                                            title="復原回上一次生成的內容"
                                                         >
-                                                            🔙 復原
+                                                            🔙 返回上一次
                                                         </button>
                                                     )}
                                                     <button 
                                                         onClick={() => generateComment(selectedId, true)}
-                                                        className="px-3 py-1 text-xs bg-morandi-oat text-morandi-dark rounded-lg hover:bg-morandi-sage hover:text-white transition-colors"
+                                                        className="px-4 py-1.5 text-xs bg-morandi-oat text-morandi-dark rounded-xl hover:bg-morandi-sage hover:text-white transition-all shadow-sm"
                                                     >
                                                         🔄 重新生成
                                                     </button>
@@ -493,36 +515,36 @@
                                             </div>
 
                                             {selectedStudent.status === 'generating' ? (
-                                                <div className="py-12 flex flex-col items-center justify-center gap-4">
-                                                    <div className="w-12 h-12 border-4 border-morandi-oat border-t-morandi-sage rounded-full animate-spin"></div>
-                                                    <p className="text-morandi-clay">精心推敲措辭中...</p>
+                                                <div className="py-16 text-center space-y-4">
+                                                    <div className="inline-block w-8 h-8 border-4 border-morandi-oat border-t-morandi-sage rounded-full animate-spin"></div>
+                                                    <p className="text-morandi-clay animate-pulse">正在為學生的表現細心措辭中...</p>
                                                 </div>
                                             ) : (
-                                                <div className="space-y-4">
-                                                    <div className="bg-morandi-bg p-6 rounded-xl text-morandi-dark leading-relaxed whitespace-pre-wrap min-h-[100px]">
+                                                <div className="space-y-6">
+                                                    <div className="bg-morandi-bg p-8 rounded-2xl text-morandi-dark leading-relaxed whitespace-pre-wrap text-lg relative group">
                                                         {selectedStudent.comment}
-                                                    </div>
-                                                    <div className="flex justify-end">
                                                         <button 
                                                             onClick={() => {
                                                                 navigator.clipboard.writeText(selectedStudent.comment);
                                                                 alert('已複製到剪貼簿');
                                                             }}
-                                                            className="text-morandi-sage text-sm font-medium hover:underline flex items-center gap-1"
+                                                            className="absolute bottom-4 right-4 bg-white/80 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                                            title="點擊複製"
                                                         >
-                                                            <span>📋 複製此段</span>
+                                                            📋
                                                         </button>
                                                     </div>
+                                                    <p className="text-xs text-morandi-clay text-right italic">※ AI 生成內容僅供參考，請老師根據實際情況進行最終修訂。</p>
                                                 </div>
                                             )}
                                         </div>
                                     )}
                                 </div>
                             ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-morandi-clay opacity-60 py-20 bg-white/50 rounded-3xl border border-dashed border-morandi-sage">
-                                    <div className="text-6xl mb-4">🎓</div>
-                                    <h2 className="text-xl font-medium">請從左側名單選擇或匯入學生</h2>
-                                    <p className="mt-2">開始為孩子們撰寫專屬評語</p>
+                                <div className="h-full flex flex-col items-center justify-center text-morandi-clay opacity-50 py-32 bg-white/40 rounded-3xl border-2 border-dashed border-morandi-sage">
+                                    <div className="text-8xl mb-6">🖋️</div>
+                                    <h2 className="text-2xl font-bold mb-2">準備好撰寫評語了嗎？</h2>
+                                    <p>請先從左側選擇學生或批次匯入名冊</p>
                                 </div>
                             )}
                         </div>
