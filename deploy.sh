@@ -2,27 +2,28 @@
 REPO_NAME="teacher-comments-generator"
 
 echo "=========================================="
-echo "🤖 第一階段：請 Gemini CLI 修復 404 模型找不到的 Bug..."
+echo "🤖 第一階段：請 Gemini CLI 進行細節打磨、版權與計數器織入..."
 echo "=========================================="
 
-gemini-cli "你是一位擁有豐富大型專案運維（DevOps）經驗的資深前端架構師。我們目前有一個使用 React + Tailwind CSS 寫成的「台灣國小期末評語生成器」index.html。
+gemini-cli "你是一位細節控的資深前端架構師與 UI/UX 專家。我們目前有一個 React + Tailwind CSS 的「台灣國小期末評語生成器」index.html。
 
-目前在測試連線時發生了 Google API 回傳 404 的嚴重錯誤：[404] models/gemini-1.5-flash is not found for API version v1beta。
-【請進行以下針對性的精確修正】：
-1. 【全面升級模型與 API 呼叫路徑】：
-   - 請將程式碼中所有嘗試呼叫 gemini-1.5-flash 的地方，**全部強制升級、改寫為最新的官方正式推薦模型：\"gemini-2.5-flash\"**。
-   - 如果程式碼中是手動拼湊 fetch URL（例如帶有 v1beta 的網址），請務必確保格式更新。如果使用的是 Google 官方最新前端 SDK (透過 CDN 引入的 @google/generative-ai)，請確保初始化寫法為 const genAI = new GoogleGenAI(apiKey); const model = genAI.getGenerativeModel({ model: \"gemini-2.5-flash\" });，徹底避開舊版測試通道的 404 限制。
+請在保留目前完整健康架構（左名冊、右設定、自訂標籤功能、學生逐個刪除、API Key 連線中文偵錯、2秒防爆延遲、莫蘭迪暖色調）的前提下，精確重構並打磨以下產品細節：
 
-2. 【保留所有強大功能與智慧防錯】：
-   - 左側：名冊批次匯入管理、學生逐個刪除功能、全域複製面板。
-   - 右側：單生設定面板、四大面向標籤（每類至少 10 個台灣小學詞彙）、自訂標籤功能（防 undefined 修正）、導師補充建議欄（Teacher's Note Area）。
-   - 包含智慧型錯誤攔截器：若發生錯誤進入 catch，精確擷取代碼並顯示繁體中文對策（如 403 提示金鑰或學校帳號 IT 權限問題、429 提示限流、網路錯誤提示防火牆問題）。
-   - 包含批次生成防爆延遲機制：每成功生成完一個學生，強制程式固定暫停 2 秒鐘，再自動發送下一個。
-   - 全域 LocalStorage 安全密碼型 API Key 儲存。
+1. 【詞彙通俗化與在地化修正】：
+   - 請嚴格檢查網頁上的文字，將「特殊表現」分類裡的【擅長\"數位\"】標籤，精確修正為台灣校園更通俗的【擅長\"科技\"】。
+   - 將所有按鈕、提示字眼中的「匯入生員」全面修正為台灣主流通俗用語【匯入學生】（例如：「批次匯入學生姓名」）。
 
-請直接輸出不省略、排版完美、立即可執行的完整 index.html 程式碼。" > index.html
+2. 【新增：低調優雅的總閱覽人數計數器】：
+   - 在網頁的最下方（或角落頁尾 Footer），新增一個淡淡的、完全不搶戲的總瀏覽人次計數器。
+   - 使用 hits.seeyoufarm.com 或類似服務，透過 Tailwind 的 opacity-40 進行極淡的視覺融合，顯示為：『 👁️ 總瀏覽人次：[計數器] 』。
 
-echo "✅ 模型路徑已由 Gemini CLI 成功修正並升級為 gemini-2.5-flash！"
+3. 【新增：專業版權與免責宣告】：
+   - 在頁尾計數器的下方或旁邊，加上一行標準且精緻的版權宣告，例如：『 © 2026 台灣國小期末評語生成器開發團隊. All Rights Reserved. 』。
+   - 在 API Key 輸入區或頁尾加註一行極小的安全免責字樣：『 🔒 本工具為純前端架構，您的 API Key 與學生資安資料皆儲存於您個人的瀏覽器本地端（LocalStorage），本站絕不收集或上傳任何隱私資訊，請安心使用。 』
+
+請直接輸出不省略、排版完美、程式碼乾淨、立即可執行的完整 index.html 程式碼。" > index.html
+
+echo "✅ 細節優化、台灣校園用語修正與計數器已成功寫入網頁！"
 echo ""
 echo "=========================================="
 echo "🛡️  第二階段：啟動 Gemini CLI 進行安全檢查..."
@@ -39,16 +40,16 @@ fi
 echo "✅ 原始碼安全檢查通過 (No Hard-coded API Key Found)."
 echo ""
 echo "=========================================="
-echo "🚀 第三階段：將修正後的最新完全體推送至 GitHub..."
+echo "🚀 第三階段：將全新完全體推送至 GitHub..."
 echo "=========================================="
 
 git add index.html deploy.sh 2>/dev/null
-git commit -m "fix: 升級 API 模型至 gemini-2.5-flash 修正測試連線 404 錯誤"
+git commit -m "feat: 修正通俗用語、新增低調瀏覽計數器與版權隱私宣告"
 git push origin main
 
 echo ""
-echo "🎉 [Bug 部署修復成功] 網頁已完成無縫熱更新！"
+echo "🎉 [產品優化成功] 最終打磨版網頁已全面同步雲端！"
 GH_USER=$(gh api user --jq '.login')
-echo "🔗 請在 30 秒後重新整理（Ctrl + F5）網址驗證新功能："
+echo "🔗 歡迎體驗產品化後的完美網址："
 echo "👉 https://${GH_USER}.github.io/${REPO_NAME}/"
 echo "=========================================="
